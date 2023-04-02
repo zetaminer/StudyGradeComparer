@@ -1,1 +1,176 @@
-<h1>Hello!</h1>
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Study Time Manager</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600&display=swap" rel="stylesheet">
+  <!--jQuery-->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!--Font Awesome-->
+  <script src="https://kit.fontawesome.com/dd528c7b3e.js" crossorigin="anonymous"></script>
+  <!--Skeleton CSS-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
+  <!--Chartjs-->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+  <!--App Styling-->
+  <style type="text/css">
+    body {
+      font-family: 'Raleway', sans-serif;
+      background-color: #212838;
+      color: rgb(0, 115, 187);
+    }
+    button {
+      color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="twelve columns">
+        <h1>Study Time Manager</h1>
+      </div>
+    </div>
+    <div class="row">
+      <div class="six columns">
+        <P>Please enter the study minutes to keep track:</P>
+        <form>
+          Minutes: <input type="text" id="minutes">
+        </form>
+        <button type="button" onclick="addMinutes()"">
+                      ADD
+        </button>
+        <button type="button" onclick="resetData()">
+                      CLEAR
+        </button>
+      </div>
+      <div class="six columns">
+        <canvas id="myChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <script>
+    // In memory SQLite
+    let db = openDatabase("studytimemanager", "1.0", "in memory sqlite", 2 * 1024 * 1024);
+
+    // On page load create the table
+    createTable();
+
+    // This array is used to track the data before it is pushed to db
+    let minutesArr = [];
+
+    // Add an entry to the DB
+    function addMinutes() {
+      let minutes = parseInt(document.getElementById("minutes").value);
+      if (minutes) {
+        let count;
+        // Select the last insert id to generate the new one
+        db.transaction(function(tx) {
+          tx.executeSql("SELECT * FROM TIMES", [],
+            function(tx, results) {
+              count = results.rows.length;
+              minutesArr.push(minutes);
+              tx.executeSql("INSERT INTO TIMES VALUES (?, ?, ?)", [count, minutes, new Date()],
+                function(tx, results) {
+                  renderChart();
+                },
+                function(tx, error) {
+                  console.log("DB entry failed: " + error.message);
+                }
+              )
+            },
+            function(tx, error) {
+              console.log("Table select failed: " + error.message);
+            }
+          )
+        });
+        document.getElementById("minutes").value = "";
+      }
+    }
+
+    // Create a chart
+    function renderChart() {
+      let idx = minutesArr.length;
+      var data = {
+        labels: ["Entry " + (idx - 5), "Entry " + (idx - 4), "Entry " + (idx - 3),
+          "Entry " + (idx - 2), "Entry " + (idx - 1), "Entry " + idx
+        ],
+        datasets: [{
+          label: 'Minutes',
+          data: [minutesArr[idx - 6], minutesArr[idx - 5], minutesArr[idx - 4],
+          minutesArr[idx - 3], minutesArr[idx - 2], minutesArr[idx - 1]
+          ],
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(255, 99, 132, 0.2)'
+          ],
+          borderColor: [
+            'rgba(75, 192, 192, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(255,99,132,1)'
+          ],
+          borderWidth: 2
+        }]
+      };
+
+      let ctx = $("#myChart");
+
+      let myLineChart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+          scales: {
+            yAxes: [{
+              ticks: {
+                beginAtZero: true
+              }
+            }]
+          }
+        }
+      });
+    }
+
+    // Create a table
+    function createTable() {
+      db.transaction(function(tx) {
+        tx.executeSql("CREATE TABLE IF NOT EXISTS TIMES (id INTEGER PRIMARY KEY, minutes INTEGER, datetime DATETIME DEFAULT CURRENT_TIMESTAMP)", [],
+          function(tx, results) {},
+          function(tx, error) {
+            console.log("Table creation failed: " + error.message);
+          }
+        );
+      });
+    }
+
+
+    // Reset DB entries
+    function resetData() {
+      db.transaction(function(tx) {
+        tx.executeSql("DELETE FROM TIMES", [],
+          function(tx, results) {
+            minutesArr = [];
+            renderChart();
+          },
+          function(tx, error) {
+            console.log("Delete failed: " + error.message);
+          }
+        )
+      });
+    }
+  </script>
+</body>
+
+</html>
