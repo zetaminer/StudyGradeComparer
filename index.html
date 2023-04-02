@@ -6,13 +6,19 @@
   <title>Study Time Manager</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="http://localhost:35729/livereload.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600&display=swap" rel="stylesheet">
+
   <!--jQuery-->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <!--Font Awesome-->
-  <script src="https://kit.fontawesome.com/dd528c7b3e.js" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+  <script src="https://kit.fontawesome.com/4d1ea98e79.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.1/themes/smoothness/jquery-ui.css">
+
   <!--Skeleton CSS-->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
   <!--Chartjs-->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
 
@@ -27,7 +33,35 @@
       color: white;
       font-weight: bold;
     }
+
+    .cog-container {
+      font-size: 32px;
+    }
   </style>
+
+<style type="text/css">
+  .circle-background {
+    background: #ccc; /* Set the background color */
+    border-radius: 50%; /* Set the border radius to create a circle */
+    width: 32px; /* Set the width and height of the div */
+    height: 32px;
+    display: flex; /* Center the content */
+    justify-content: center;
+    align-items: center;
+    padding-top: 2px;
+    font-family: "Arial", sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .fa, .fas {
+    cursor: pointer;
+    color: #cac6ffe8;
+  }
+</style>
+
+
 </head>
 
 <body>
@@ -37,13 +71,127 @@
         <h1>Study Time Manager</h1>
       </div>
     </div>
+    <!-- foo start -->
+    <hr/>
     <div class="row">
       <div class="six columns">
+        <canvas id="myChart"></canvas>
+      </div>
+      <div class="six columns">
+        <canvas id="gradeChart"></canvas>
+      </div>
+    </div>
+    <hr/>
+    <div>
+      <div class="row">
+        <div class="six columns">
+          <div class="row" style="margin-bottom: 16px;">
+            <div class="twelve-columns">
+              <div class="twelve columns">
+                <h4>Auto Study Time Logger</h4>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="five columns">
+              <button>Start</button>
+            </div>
+            <div class="five columns">
+              <button>End</button>
+          </div>
+          </div>
+        </div>
+        <div class="six columns">
+          <h4>Distractions</h4>
+          <div class="row" style="margin-bottom: 16px;">
+            <div class="twelve columns">
+              Number of distractions:
+            </div>
+          </div>
+          <div class="row" style="margin-bottom: 16px;">
+            <div class="two columns">
+              <div class="cog-container">
+                <div class="circle-background">0</div>
+              </div>
+            </div>
+            <div class="two columns">
+              <div class="cog-container">
+                <div class="circle-background">2</div>
+              </div>
+            </div>
+            <div class="two columns">
+              <div class="cog-container">
+                <div class="circle-background">4</div>
+              </div>
+            </div>
+            <div class="two columns">
+              <div class="cog-container">
+                <div class="circle-background">6</div>
+              </div>
+            </div>
+            <div class="two columns">
+              <div class="cog-container">
+                <div class="circle-background">+</div>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-bottom: 4px;">
+            <div class="twelve columns">
+              Type of distraction:
+            </div>
+          </div>
+          <div class="row distractions">
+            <div class="row">
+              <div class="two columns">
+                <div class="cog-container">
+                  <i class="fas fa-phone "></i>
+                </div>
+              </div>
+              <div class="two columns">
+                <div class="cog-container">
+                  <i class="fa fa-music "></i>
+                </div>
+              </div>
+              <div class="two columns">
+                <div class="cog-container">
+                  <i class="fa fa-paw "></i>
+                </div>
+              </div>
+              <div class="two columns">
+                <div class="cog-container">
+                  <i class="fa fa-gamepad "></i>
+                </div>
+              </div>
+              <div class="two columns">
+                <div class="cog-container">
+                  <i class="fa fa-tv "></i>
+                </div>
+              </div>
+          </div>
+            <div class="row">
+              Study quality self assessment:
+            </div>
+            <div class="row" style="margin-top: 16px;">
+             <div id="slider"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+<!-- foo end -->
+    <hr/>
+    <div class="row">
+      <div class="six columns">
+    <div class="row">
+      <h4>Manual Entry for Past Study Times</h4>
+    </div>
         <P>Please enter the study minutes to keep track:</P>
-        <form>
-          Minutes: <input type="text" id="minutes">
-        </form>
-        <button type="button" onclick="addMinutes()"">
+        <div class="row">
+          Date: <input type="date" style="margin-left: 32px;"/>
+        </div>
+        <div class="row">
+            Minutes: <input style="margin-left: 8px;" type="text" id="minutes">
+        </div>
+        <button type="button" onclick="addMinutes()">
                       ADD
         </button>
         <button type="button" onclick="resetData()">
@@ -51,8 +199,25 @@
         </button>
       </div>
       <div class="six columns">
-        <canvas id="myChart"></canvas>
+    <div class="row">
+      <h4>Grade Entry</h4>
+    </div>
+        <P>Please enter the grade to keep track:</P>
+        <div class="row">
+            Grade %: <input style="margin-left: 8px;" type="text" id="grade">
+        </div>
+        <button type="button" onclick="addGrades()">
+                      ADD
+        </button>
+        <button type="button" onclick="resetData()">
+                      CLEAR
+        </button>
       </div>
+    </div>
+  <hr/>
+  </div>
+
+
     </div>
   </div>
   <script>
@@ -64,6 +229,7 @@
 
     // This array is used to track the data before it is pushed to db
     let minutesArr = [];
+    let gradesArr = [];
 
     // Add an entry to the DB
     function addMinutes() {
@@ -94,12 +260,25 @@
       }
     }
 
+    // Add an entry to the DB
+    function addGrades() {
+      let grade = parseInt(document.getElementById("grade").value);
+      if (grade) {
+        gradesArr.push(grade);
+        renderGradesChart();
+
+        document.getElementById("grade").value = "";
+      }
+    }
+
     // Create a chart
     function renderChart() {
       let idx = minutesArr.length;
+      var startDate = new Date(); 
+
       var data = {
-        labels: ["Entry " + (idx - 5), "Entry " + (idx - 4), "Entry " + (idx - 3),
-          "Entry " + (idx - 2), "Entry " + (idx - 1), "Entry " + idx
+        labels: ["Day " + (idx - 5), "Day " + (idx - 4), "Day " + (idx - 3),
+          "Day " + (idx - 2), "Day " + (idx - 1), "Day " + idx
         ],
         datasets: [{
           label: 'Minutes',
@@ -142,6 +321,60 @@
         }
       });
     }
+
+    function renderGradesChart() {
+      let idx = gradesArr.length;
+      var startDate = new Date(); 
+
+      let data = {
+        labels: ["Day " + (idx - 5), "Day " + (idx - 4), "Day " + (idx - 3),
+          "Day " + (idx - 2), "Day " + (idx - 1), "Day " + idx
+        ],
+        datasets: [{
+          label: 'Grade',
+          data: [gradesArr[idx - 6], gradesArr[idx - 5], gradesArr[idx - 4],
+          gradesArr[idx - 3], gradesArr[idx - 2], gradesArr[idx - 1]
+          ],
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(255, 159, 64, 0.2)',
+            'rgba(255, 99, 132, 0.2)'
+          ],
+          borderColor: [
+            'rgba(75, 192, 192, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(255,99,132,1)'
+          ],
+          borderWidth: 2
+        }]
+      };
+
+      let ctx = $("#gradeChart");
+
+      let myLineChart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+          scales: {
+            yAxes: [{
+              ticks: {
+                beginAtZero: true
+              }
+            }]
+          }
+        }
+      });
+    }
+
+    $("#slider").slider();
+    renderChart();
+    renderGradesChart();
 
     // Create a table
     function createTable() {
