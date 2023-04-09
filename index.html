@@ -6,7 +6,6 @@
   <title>Study Time Manager</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="http://localhost:35729/livereload.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!--jQuery-->
@@ -29,6 +28,11 @@
       background-color: #212838;
       color: rgb(0, 115, 187);
     }
+
+    h2, h3, h4 {
+      font-weight: bold;
+    }
+
     button {
       color: white;
       font-weight: bold;
@@ -36,6 +40,12 @@
 
     .cog-container {
       font-size: 32px;
+    }
+
+    #studytimer {
+      font-weight: bold;
+      font-size: 18px;
+      color: white;
     }
   </style>
 
@@ -74,6 +84,16 @@
     <!-- foo start -->
     <hr/>
     <div class="row">
+      <div class="two columns">(debug) pick user</div>
+      <div class="ten columns">
+        <select id="student_id" onchange="update()">
+          <option value="6">Billy</option>
+          <option value="7">Alice</option>
+        </select>
+      </div>
+    </div>
+    <hr/>
+    <div class="row">
       <div class="six columns">
         <canvas id="myChart"></canvas>
       </div>
@@ -81,6 +101,11 @@
         <canvas id="gradeChart"></canvas>
       </div>
     </div>
+
+    <hr/>
+      <div class="row">
+        <canvas id="averageChart"></canvas>
+      </div>
     <hr/>
     <div>
       <div class="row">
@@ -94,11 +119,15 @@
           </div>
           <div class="row">
             <div class="five columns">
-              <button>Start</button>
+              <button onclick="startClick()">Start</button>
             </div>
             <div class="five columns">
-              <button>End</button>
+              <button onclick="endClick()">End</button>
+            </div>
           </div>
+          <div class="row">
+            <div class="twelve columns" id="studytimer">
+            </div>
           </div>
         </div>
         <div class="six columns">
@@ -169,7 +198,10 @@
               </div>
           </div>
             <div class="row">
-              Study quality self assessment:
+              <p>
+                <label for="amount">Study quality self assessment:</label>
+                <input type="text" id="study_quality" readonly value="10" style="cursor:arrow; border:0; color:#f6931f; font-weight:bold; font-size:20px; width: 48px;">
+              </p>
             </div>
             <div class="row" style="margin-top: 16px;">
              <div id="slider"></div>
@@ -186,7 +218,7 @@
     </div>
         <P>Please enter the study minutes to keep track:</P>
         <div class="row">
-          Date: <input type="date" style="margin-left: 32px;"/>
+          Date: <input id="studydate" type="date" style="margin-left: 32px;"/>
         </div>
         <div class="row">
             Minutes: <input style="margin-left: 8px;" type="text" id="minutes">
@@ -194,7 +226,7 @@
         <button type="button" onclick="addMinutes()">
                       ADD
         </button>
-        <button type="button" onclick="resetData()">
+        <button type="button">
                       CLEAR
         </button>
       </div>
@@ -209,7 +241,7 @@
         <button type="button" onclick="addGrades()">
                       ADD
         </button>
-        <button type="button" onclick="resetData()">
+        <button type="button">
                       CLEAR
         </button>
       </div>
@@ -220,43 +252,112 @@
 
     </div>
   </div>
-  <script>
-    // In memory SQLite
-    let db = openDatabase("studytimemanager", "1.0", "in memory sqlite", 2 * 1024 * 1024);
-
+  <script type="text/javascript">
     // On page load create the table
-    createTable();
+    var gradesArr = [];
 
-    // This array is used to track the data before it is pushed to db
-    let minutesArr = [];
-    let gradesArr = [];
+    var rawGrades = [];
+    var rawMinutes = [];
+    var averageChartData = {};
+
+    var minuteChart;
+    var gradeChart;
+    var averageChart;
+
+    const host = "http://44.202.185.202:3000";
+
+    const colorRot = [
+      'rgba(75, 192, 192, 1)',
+      'rgba(54, 162, 235, 1)',
+      'rgba(255, 206, 86, 1)',
+      'rgba(153, 102, 255, 1)',
+      'rgba(255, 159, 64, 1)',
+      'rgba(75, 192, 192, 1)',
+      'rgba(255,99,132,1)'
+    ];
+
+    const bgColors = [
+      'rgba(54, 162, 235, 0.2)',
+      'rgba(255, 206, 86, 0.2)',
+      'rgba(75, 192, 192, 0.2)',
+      'rgba(153, 102, 255, 0.2)',
+      'rgba(255, 159, 64, 0.2)',
+      'rgba(255, 99, 132, 0.2)',
+      'rgba(54, 162, 235, 0.2)',
+    ];
+
+    function getGrades() {
+      const studentID = parseInt($("#student_id").val());
+
+      $.ajax({
+        url: host+"/grades/"+studentID,
+        dataType: "json",
+        success: function(data) {
+          rawGrades = data;
+          gradesArr = data.map(obj => obj.grade).flat();
+          renderGradesChart();
+        },
+        error: function(xhr, status, error) {
+          console.log("Error: " + error);
+        }
+      });
+    }
+
+    function getTimes() {
+      const studentID = parseInt($("#student_id").val());
+      $.ajax({
+        url: host+"/times/"+studentID,
+        dataType: "json",
+        success: function(data) {
+          rawMinutes = data;
+          renderChart();
+        },
+        error: function(xhr, status, error) {
+          // handle the error here
+          console.log("Error: " + error);
+        }
+      });
+    }
+
 
     // Add an entry to the DB
     function addMinutes() {
+      let studydate = (new Date($("#studydate").val())).getTime();
+      if (!studydate) {
+        alert("need valid date to insert")
+      }
+
       let minutes = parseInt(document.getElementById("minutes").value);
       if (minutes) {
         let count;
-        // Select the last insert id to generate the new one
-        db.transaction(function(tx) {
-          tx.executeSql("SELECT * FROM TIMES", [],
-            function(tx, results) {
-              count = results.rows.length;
-              minutesArr.push(minutes);
-              tx.executeSql("INSERT INTO TIMES VALUES (?, ?, ?)", [count, minutes, new Date()],
-                function(tx, results) {
-                  renderChart();
-                },
-                function(tx, error) {
-                  console.log("DB entry failed: " + error.message);
-                }
-              )
-            },
-            function(tx, error) {
-              console.log("Table select failed: " + error.message);
-            }
-          )
-        });
         document.getElementById("minutes").value = "";
+        document.getElementById("studydate").value = "";
+
+        const studyQuality = parseInt($("#study_quality").val());
+        const studentID = parseInt($("#student_id").val());
+
+        // Create an object to send in the request
+        var myObject = {
+          student: studentID,
+          minutes: minutes,
+          date: studydate,
+          study_quality: studyQuality
+        };
+
+        // Use jQuery to send the POST request
+        $.ajax({
+          url: host+"/times",
+          type: "POST",
+          data: JSON.stringify(myObject),
+          contentType: "application/json; charset=utf-8",
+          dataType: "json",
+          success: function(data) {
+            update();
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.error("Request failed:", errorThrown);
+          }
+        });
       }
     }
 
@@ -264,8 +365,29 @@
     function addGrades() {
       let grade = parseInt(document.getElementById("grade").value);
       if (grade) {
-        gradesArr.push(grade);
-        renderGradesChart();
+
+        const studentID = parseInt($("#student_id").val());
+        // Create an object to send in the request
+        var myObject = {
+          student: studentID,
+          grade: grade,
+          date: (new Date()).getTime(),
+        };
+
+        // Use jQuery to send the POST request
+        $.ajax({
+          url: host+"/grades",
+          type: "POST",
+          data: JSON.stringify(myObject),
+          contentType: "application/json; charset=utf-8",
+          dataType: "json",
+          success: function(data) {
+            update();
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            console.error("Request failed:", errorThrown);
+          }
+        });
 
         document.getElementById("grade").value = "";
       }
@@ -273,41 +395,36 @@
 
     // Create a chart
     function renderChart() {
-      let idx = minutesArr.length;
-      var startDate = new Date(); 
+      const vals = rawMinutes.map((m)=>m.minutes).flat();
+
+      const dateLabels = [];
+      const ptColors = [];
+      for(let i = 0; i < rawMinutes.length; i++) {
+        let l = (new Date(rawMinutes[i].date)).toLocaleDateString('en-US');
+
+        dateLabels.push(l);
+        ptColors.push(colorRot[i%5]);
+      }
 
       var data = {
-        labels: ["Day " + (idx - 5), "Day " + (idx - 4), "Day " + (idx - 3),
-          "Day " + (idx - 2), "Day " + (idx - 1), "Day " + idx
-        ],
+        labels: dateLabels,
         datasets: [{
-          label: 'Minutes',
-          data: [minutesArr[idx - 6], minutesArr[idx - 5], minutesArr[idx - 4],
-          minutesArr[idx - 3], minutesArr[idx - 2], minutesArr[idx - 1]
-          ],
-          backgroundColor: [
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(255, 206, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)',
-            'rgba(153, 102, 255, 0.2)',
-            'rgba(255, 159, 64, 0.2)',
-            'rgba(255, 99, 132, 0.2)'
-          ],
-          borderColor: [
-            'rgba(75, 192, 192, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(153, 102, 255, 1)',
-            'rgba(255, 159, 64, 1)',
-            'rgba(255,99,132,1)'
-          ],
+          label: 'Minutes Studied',
+          fill: false,
+          data: vals,
+          backgroundColor: bgColors,
+          borderColor: ptColors,
           borderWidth: 2
         }]
       };
 
       let ctx = $("#myChart");
 
-      let myLineChart = new Chart(ctx, {
+      if(minuteChart) {
+        minuteChart.destroy();
+      }
+
+      minuteChart = new Chart(ctx, {
         type: 'line',
         data: data,
         options: {
@@ -315,6 +432,11 @@
             yAxes: [{
               ticks: {
                 beginAtZero: true
+              }
+            }],
+            xAxes: [{
+              ticks: {
+                fontColor: "white",
               }
             }]
           }
@@ -323,18 +445,20 @@
     }
 
     function renderGradesChart() {
-      let idx = gradesArr.length;
-      var startDate = new Date(); 
+      const vals = rawGrades.map((g)=>g.grade).flat();
 
-      let data = {
-        labels: ["Day " + (idx - 5), "Day " + (idx - 4), "Day " + (idx - 3),
-          "Day " + (idx - 2), "Day " + (idx - 1), "Day " + idx
-        ],
+      const dateLabels = [];
+      for(let i = 0; i < rawGrades.length; i++) {
+          let l = (new Date(rawGrades[i].date)).toLocaleDateString('en-US');
+          dateLabels.push(l);
+      }
+
+      const data = {
+        labels: dateLabels,
         datasets: [{
           label: 'Grade',
-          data: [gradesArr[idx - 6], gradesArr[idx - 5], gradesArr[idx - 4],
-          gradesArr[idx - 3], gradesArr[idx - 2], gradesArr[idx - 1]
-          ],
+          fill: false,
+          data: vals,
           backgroundColor: [
             'rgba(54, 162, 235, 0.2)',
             'rgba(255, 206, 86, 0.2)',
@@ -344,20 +468,24 @@
             'rgba(255, 99, 132, 0.2)'
           ],
           borderColor: [
+            'rgba(255,99,132,1)',
             'rgba(75, 192, 192, 1)',
             'rgba(54, 162, 235, 1)',
             'rgba(255, 206, 86, 1)',
             'rgba(153, 102, 255, 1)',
-            'rgba(255, 159, 64, 1)',
-            'rgba(255,99,132,1)'
+            'rgba(255, 159, 64, 1)'
           ],
           borderWidth: 2
         }]
       };
 
-      let ctx = $("#gradeChart");
+      const ctx = $("#gradeChart");
 
-      let myLineChart = new Chart(ctx, {
+      if(gradeChart) {
+        gradeChart.destroy();
+      }
+
+      gradeChart = new Chart(ctx, {
         type: 'line',
         data: data,
         options: {
@@ -366,44 +494,201 @@
               ticks: {
                 beginAtZero: true
               }
+            }],
+            xAxes: [{
+              ticks: {
+                fontColor: "white",
+              }
             }]
           }
         }
       });
     }
+   
+  function getAverages() {
+    const studentID = parseInt($("#student_id").val());
 
-    $("#slider").slider();
-    renderChart();
-    renderGradesChart();
-
-    // Create a table
-    function createTable() {
-      db.transaction(function(tx) {
-        tx.executeSql("CREATE TABLE IF NOT EXISTS TIMES (id INTEGER PRIMARY KEY, minutes INTEGER, datetime DATETIME DEFAULT CURRENT_TIMESTAMP)", [],
-          function(tx, results) {},
-          function(tx, error) {
-            console.log("Table creation failed: " + error.message);
-          }
-        );
+    $.ajax({
+        url: host+"/times/average/student/"+studentID,
+        dataType: "json",
+        success: function(data) {
+          averageChartData = data;
+          renderAveragesChart();
+        },
+        error: function(xhr, status, error) {
+          console.log("Error retrieving averages: " + error);
+        }
       });
+
+  }
+
+  function renderAveragesChart() {
+    const groupAvgTimeVals  = averageChartData.groupGraph.map((d) => d.groupAvgTime?d.groupAvgTime:0).flat();
+    const groupAvgQualVals  = averageChartData.groupGraph.map((d) => d.groupAvgTime?d.groupAvgQual:0).flat();
+
+    const data = {
+      labels: ["A", "B", "C", "D"],
+      datasets: [{
+        label: 'Total Class TIME Average',
+        data: groupAvgTimeVals,
+        backgroundColor: [
+          'rgba(54, 162, 235, 0.2)',
+          'rgba(255, 206, 86, 0.2)',
+          'rgba(75, 192, 192, 0.2)',
+          'rgba(153, 102, 255, 0.2)',
+          'rgba(255, 159, 64, 0.2)',
+          'rgba(255, 99, 132, 0.2)'
+        ],
+        borderColor: [
+          'rgba(75, 192, 192, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(255,99,132,1)'
+        ],
+        borderWidth: 2
+      },{
+        label: 'Total Class QUALITY Average',
+        data: groupAvgQualVals,
+        backgroundColor: [
+          'rgba(75, 192, 192, 0.2)',
+          'rgba(153, 102, 255, 0.2)',
+          'rgba(255, 159, 64, 0.2)',
+          'rgba(255, 99, 132, 0.2)'
+        ],
+        borderColor: [
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(255,99,132,1)'
+        ],
+        borderWidth: 2
+      },{
+        label: 'Individual TIME Average',
+        fill: false,
+        type: 'line',
+        data: [
+          averageChartData.indivGraph.avgStudyTime,
+          averageChartData.indivGraph.avgStudyTime,
+          averageChartData.indivGraph.avgStudyTime,
+          averageChartData.indivGraph.avgStudyTime
+        ],
+        backgroundColor: [
+          'rgba(153, 102, 255, 0.2)',
+          'rgba(255, 159, 64, 0.2)',
+          'rgba(255, 99, 132, 0.2)'
+        ],
+        borderColor: [
+          'rgba(153, 102, 255, 1)',
+          'rgba(255, 159, 64, 1)',
+          'rgba(255,99,132,1)'
+        ],
+        borderWidth: 2
+      },{
+        label: 'Individual QUALITY Average',
+        fill: false,
+        type: 'line',
+        data: [
+          averageChartData.indivGraph.avgStudyQuality,
+          averageChartData.indivGraph.avgStudyQuality,
+          averageChartData.indivGraph.avgStudyQuality,
+          averageChartData.indivGraph.avgStudyQuality
+        ],
+        backgroundColor: [
+          'rgba(255, 159, 64, 0.2)',
+          'rgba(255, 99, 132, 0.2)'
+        ],
+        borderColor: [
+          'rgba(255, 159, 64, 1)',
+          'rgba(255,99,132,1)'
+        ],
+        borderWidth: 2
+      }
+    ]};
+
+    let ctx = $("#averageChart");
+
+    if(averageChart) {
+      averageChart.destroy();
     }
 
+    averageChart = new Chart(ctx, {
+      type: 'bar',
+      data: data,
+      options: {
+        scales: {
+          yAxes: [{
+            ticks: {
+              beginAtZero: true
+            }
+          }],
+          xAxes: [{
+            ticks: {
+              fontColor: "white",
+              fontSize: 16,
+              fontStyle: "bold"
+            }
+          }]
+        }
+      }
+    });
+  }
 
-    // Reset DB entries
-    function resetData() {
-      db.transaction(function(tx) {
-        tx.executeSql("DELETE FROM TIMES", [],
-          function(tx, results) {
-            minutesArr = [];
-            renderChart();
-          },
-          function(tx, error) {
-            console.log("Delete failed: " + error.message);
-          }
-        )
-      });
+  // Set the initial timer value to 0 seconds
+  var timer = 0;
+  var timerHandle = null;
+
+  function startClick() 
+  {
+    // Update the timer every second
+    timerHandle = setInterval(function() {
+      // Increment the timer by 1 second
+      timer++;
+
+      // Convert the timer value to hours, minutes, and seconds
+      var hours = Math.floor(timer / 3600);
+      var minutes = Math.floor((timer - (hours * 3600)) / 60);
+      var seconds = timer - (hours * 3600) - (minutes * 60);
+
+      // Add leading zeros to single-digit values
+      if (hours < 10) hours = "0" + hours;
+      if (minutes < 10) minutes = "0" + minutes;
+      if (seconds < 10) seconds = "0" + seconds;
+
+      // Update the timer display with the new value
+      $('#studytimer').text(hours + ":" + minutes + ":" + seconds);
+    }, 1000); // Execute the function every 1 second (1000 milliseconds)
+  } 
+
+  function endClick() 
+  {
+    if(timerHandle) {
+      clearTimeout(timerHandle);
     }
-  </script>
+  } 
+
+  $("#slider").slider({
+    value:10,
+    min: 1,
+    max: 10,
+    step: 1,
+    slide: function( event, ui ) {
+      $( "#study_quality" ).val( ui.value );
+    }
+  });
+
+  function update() {
+    getTimes();
+    getGrades();
+    getAverages();
+  }
+
+  $(function() {
+    update();
+  });
+</script>
 </body>
 
-</html>
+</html>v
